@@ -150,6 +150,34 @@ class ReportStatus(StrEnum):
 REPORT_STATUS_LABELS: dict[str, str] = {ReportStatus.DRAFT.value: "草稿", ReportStatus.PUBLISHED.value: "已发布"}
 
 
+class RevisionSource(StrEnum):
+    """迟到补报数据的来源。"""
+
+    PMS = "pms"
+    OTA = "ota"
+    MIXED = "mixed"
+
+
+REVISION_SOURCE_LABELS: dict[str, str] = {
+    RevisionSource.PMS.value: "PMS 补报",
+    RevisionSource.OTA.value: "OTA 补报",
+    RevisionSource.MIXED.value: "PMS+OTA 混合",
+}
+
+
+class RevisionStatus(StrEnum):
+    """数据修订状态：待确认 -> 已确认（报告只能引用已确认修订）。"""
+
+    DRAFT = "draft"
+    CONFIRMED = "confirmed"
+
+
+REVISION_STATUS_LABELS: dict[str, str] = {
+    RevisionStatus.DRAFT.value: "待确认",
+    RevisionStatus.CONFIRMED.value: "已确认",
+}
+
+
 # 算法 A 默认参数（detection.DEFAULTS 的对外镜像，前端只展示不计算）
 DETECTION_DEFAULTS: dict[str, float | int | bool] = {
     "window": 28,

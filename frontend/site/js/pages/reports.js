@@ -12,6 +12,7 @@ function openDetail(view, ctx, report) {
       ['异常起数', report.anomaly_count],
       ['影响合计', fmtMoney(report.impact_total)],
       ['生成人', esc(report.generated_by)],
+      ['数据修订', report.revision_no ? `<span class="mono">${esc(report.revision_no)}</span> · 截止 ${esc(report.data_cutoff || '—')}` : '<span class="muted">未绑定（旧版数据）</span>'],
       ['口径', esc(snapshot.method || '—')],
       ['数据窗口', `${esc(snapshot.data_window?.start || '—')} → ${esc(snapshot.data_window?.end || '—')}`],
     ])}
@@ -81,7 +82,11 @@ function openGenerate(view, ctx) {
         period_end: form.period_end.value,
         note: form.note.value.trim() || null,
       });
-      toast(`报告 ${report.report_no} 已生成：${report.anomaly_count} 起异常`);
+      toast(
+        report.created === false
+          ? `同一区间与修订的报告 ${report.report_no} 已存在，幂等返回`
+          : `报告 ${report.report_no} 已生成：${report.anomaly_count} 起异常${report.revision_no ? `，引用修订 ${report.revision_no}` : ''}`,
+      );
       close();
       await reportsPage.render(view, ctx);
     } catch (err) {
@@ -115,7 +120,7 @@ export const reportsPage = {
           rows: data.items,
           columns: [
             { key: 'report_no', label: '编号', className: 'mono' },
-            { key: 'title', label: '标题', render: (row) => `<b>${esc(row.title)}</b><div class="mono muted">${esc(row.period_start)} → ${esc(row.period_end)}</div>` },
+            { key: 'title', label: '标题', render: (row) => `<b>${esc(row.title)}</b><div class="mono muted">${esc(row.period_start)} → ${esc(row.period_end)} · ${esc(row.revision_no || '未绑定修订')}</div>` },
             { key: 'kind_label', label: '类型' },
             { key: 'anomaly_count', label: '异常', className: 'num' },
             { key: 'impact_total', label: '影响', className: 'num', render: (row) => `<span class="neg">${fmtMoney(row.impact_total)}</span>` },

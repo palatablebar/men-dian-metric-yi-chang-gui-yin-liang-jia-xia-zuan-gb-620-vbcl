@@ -18,6 +18,7 @@ class Anomaly(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     run_id: Mapped[int | None] = mapped_column(ForeignKey("runs.id", ondelete="SET NULL"), nullable=True, index=True)
+    revision_id: Mapped[int | None] = mapped_column(ForeignKey("data_revisions.id", ondelete="SET NULL"), nullable=True, index=True)
     store_id: Mapped[int] = mapped_column(ForeignKey("stores.id", ondelete="CASCADE"), index=True)
     metric_date: Mapped[date] = mapped_column(Date, index=True)
     metric_key: Mapped[str] = mapped_column(String(12), default="rev")

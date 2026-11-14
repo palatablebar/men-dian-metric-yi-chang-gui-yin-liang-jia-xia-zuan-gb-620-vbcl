@@ -1,9 +1,9 @@
-"""幂等 seed：3 账号 / 120 门店 / 32,400 指标点 / 1 次检测 / 37 起异常 + 归因 / 1 份周报。
+"""幂等 seed：3 账号 / 120 门店 / 32,400 指标点 / 1 次检测 / 37 起异常 + 归因 / 1 次数据修订 / 1 份周报。
 
 自然键 upsert：
   users.email / stores.code / metric_points(store_id, stat_date, channel)
   runs.seed_key / anomalies(store_id, metric_date, metric_key) / attributions.anomaly_id
-  reports.seed_key / audit_logs.seed_key
+  data_revisions.seed_key / reports.seed_key / audit_logs.seed_key
 重复执行不新增、不覆盖用户改过的处理结论；SEED_SUMMARY 逐字一致。
 
 口径：SEED_SUMMARY brand=<短名> users=<n> sources=<门店数> runs=<检测批次> findings=<异常数> pending=<待处理数>
@@ -21,10 +21,11 @@ from src.models.attribution import Attribution
 from src.models.audit import AuditLog
 from src.models.metric import MetricPoint
 from src.models.report import Report
+from src.models.revision import ReviewArchive
 from src.models.run import Run
 from src.models.store import Store
 from src.models.user import User
-from src.services import attribution_service, report_service, run_service
+from src.services import attribution_service, report_service, revision_service, run_service
 from src.utils.logger import get_logger
 from src.utils.security import hash_password
 
@@ -34,6 +35,7 @@ from scripts.demo_config import (
     ORG,
     SEED_REPORT,
     SEED_REVIEWS,
+    SEED_REVISION,
     SEED_RUN,
 )
 from scripts.demo_data import build_dataset
@@ -129,6 +131,7 @@ def ensure_attributions(db) -> int:
 
 def ensure_reviews(db) -> None:
     stores = {store.code: store for store in db.scalars(select(Store)).all()}
+    archived_ids = {row[0] for row in db.execute(select(ReviewArchive.anomaly_id)).all()}
     for code, metric_date, status, note in SEED_REVIEWS:
         store = stores.get(code)
         if store is None:
@@ -142,6 +145,8 @@ def ensure_reviews(db) -> None:
         )
         if anomaly is None or anomaly.status != "pending":
             continue
+        if anomaly.id in archived_ids:
+            continue  # 修订已回退的复核不重复套用（保持幂等）
         anomaly.status = status
         anomaly.reviewer = "analyst@anomalyattr.io"
         anomaly.review_note = note
@@ -154,7 +159,7 @@ def ensure_reviews(db) -> None:
 def ensure_report(db) -> int:
     existing = db.scalar(select(Report).where(Report.seed_key == SEED_REPORT["seed_key"]))
     if existing is None:
-        report = report_service.generate(
+        report, _ = report_service.generate(
             db,
             {
                 "kind": SEED_REPORT["kind"],
@@ -171,11 +176,30 @@ def ensure_report(db) -> int:
     return db.scalar(select(func.count()).select_from(Report)) or 0
 
 
+def ensure_revision(db) -> None:
+    """迟到补报形成修订（在报告之后：周报保持旧版引用，成为「受影响报告」）。"""
+    revision, created = revision_service.ingest(
+        db,
+        {
+            "data_cutoff": SEED_REVISION["data_cutoff"],
+            "source": SEED_REVISION["source"],
+            "note": SEED_REVISION["note"],
+            "points": SEED_REVISION["points"],
+        },
+        "analyst@anomalyattr.io",
+        seed_key=SEED_REVISION["seed_key"],
+    )
+    if SEED_REVISION["confirm"] and revision.status != "confirmed":
+        revision_service.confirm(db, revision, "admin@anomalyattr.io")
+    db.flush()
+
+
 def ensure_audit(db) -> None:
     seeds = [
         ("seed-audit-1", "admin@anomalyattr.io", "admin", "store.create", "store", {"code": "LB-HD-001"}),
         ("seed-audit-2", "analyst@anomalyattr.io", "analyst", "run.create", "run", {"run": SEED_RUN["seed_key"]}),
         ("seed-audit-3", "admin@anomalyattr.io", "admin", "report.generate", "report", {"report": SEED_REPORT["seed_key"]}),
+        ("seed-audit-4", "analyst@anomalyattr.io", "analyst", "revision.create", "revision", {"revision": SEED_REVISION["seed_key"]}),
     ]
     for seed_key, email, role, action, entity, detail in seeds:
         exists = db.scalar(select(AuditLog).where(AuditLog.seed_key == seed_key))
@@ -204,6 +228,7 @@ def seed_all() -> dict:
         ensure_attributions(db)
         ensure_reviews(db)
         ensure_report(db)
+        ensure_revision(db)
         ensure_audit(db)
         store_total = db.scalar(select(func.count()).select_from(Store)) or 0
         runs = db.scalar(select(func.count()).select_from(Run)) or 0

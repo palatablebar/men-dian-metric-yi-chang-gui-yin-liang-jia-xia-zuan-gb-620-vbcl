@@ -11,6 +11,7 @@ from src.models.audit import AuditLog  # noqa: E402
 from src.models.store import Store  # noqa: E402
 from src.models.metric import MetricPoint  # noqa: E402
 from src.models.run import Run  # noqa: E402
+from src.models.revision import DataRevision, ReviewArchive  # noqa: E402
 from src.models.anomaly import Anomaly  # noqa: E402
 from src.models.attribution import Attribution  # noqa: E402
 from src.models.report import Report  # noqa: E402
@@ -22,6 +23,8 @@ __all__ = [
     "Store",
     "MetricPoint",
     "Run",
+    "DataRevision",
+    "ReviewArchive",
     "Anomaly",
     "Attribution",
     "Report",

@@ -12,15 +12,18 @@ from src.constants.enums import (
 )
 from src.models.anomaly import Anomaly
 from src.models.attribution import Attribution
+from src.models.revision import DataRevision, ReviewArchive
 from src.models.store import Store
 from src.utils.errors import AppError, not_found
 from src.utils.timeutil import iso_utc, parse_date, utcnow
 
 
-def serialize(anomaly: Anomaly, store: Store | None = None, attribution_id: int | None = None) -> dict:
+def serialize(anomaly: Anomaly, store: Store | None = None, attribution_id: int | None = None, revision_no: str | None = None) -> dict:
     return {
         "id": anomaly.id,
         "run_id": anomaly.run_id,
+        "revision_id": anomaly.revision_id,
+        "revision_no": revision_no,
         "store_id": anomaly.store_id,
         "store_code": store.code if store else None,
         "store_name": store.name if store else None,
@@ -53,6 +56,34 @@ def serialize(anomaly: Anomaly, store: Store | None = None, attribution_id: int 
 def _attribution_map(db: Session) -> dict[int, int]:
     rows = db.execute(select(Attribution.anomaly_id, Attribution.id)).all()
     return {anomaly_id: attribution_id for anomaly_id, attribution_id in rows}
+
+
+def _revision_map(db: Session) -> dict[int, str]:
+    return {row.id: row.revision_no for row in db.scalars(select(DataRevision)).all()}
+
+
+def review_history(db: Session, anomaly_id: int) -> list[dict]:
+    """修订回退时归档保留的原复核（新的在前）。"""
+    rows = db.scalars(
+        select(ReviewArchive).where(ReviewArchive.anomaly_id == anomaly_id).order_by(ReviewArchive.id.desc())
+    ).all()
+    revision_nos = _revision_map(db)
+    return [
+        {
+            "id": row.id,
+            "status": row.status,
+            "status_label": REVIEW_STATUS_LABELS.get(row.status, row.status),
+            "reviewer": row.reviewer,
+            "review_note": row.review_note,
+            "reviewed_at": iso_utc(row.reviewed_at),
+            "revision_id": row.revision_id,
+            "revision_no": revision_nos.get(row.revision_id),
+            "prev": {"direction": row.prev_direction, "severity": row.prev_severity, "impact_amount": round(row.prev_impact, 2), "robust_z": round(row.prev_z, 4)},
+            "new": {"direction": row.new_direction, "severity": row.new_severity, "impact_amount": round(row.new_impact, 2), "robust_z": round(row.new_z, 4)},
+            "archived_at": iso_utc(row.created_at),
+        }
+        for row in rows
+    ]
 
 
 def list_anomalies(
@@ -107,9 +138,10 @@ def list_anomalies(
     ).all()
     stores = {store.id: store for store in db.scalars(select(Store)).all()}
     attribution_ids = _attribution_map(db)
+    revision_nos = _revision_map(db)
     return {
         "items": [
-            serialize(row, stores.get(row.store_id), attribution_ids.get(row.id))
+            serialize(row, stores.get(row.store_id), attribution_ids.get(row.id), revision_nos.get(row.revision_id))
             for row in rows
         ],
         "total": total,
@@ -129,7 +161,10 @@ def get_with_context(db: Session, anomaly_id: int) -> dict:
     anomaly = get_anomaly(db, anomaly_id)
     store = db.get(Store, anomaly.store_id)
     attribution_ids = _attribution_map(db)
-    return serialize(anomaly, store, attribution_ids.get(anomaly.id))
+    revision_nos = _revision_map(db)
+    data = serialize(anomaly, store, attribution_ids.get(anomaly.id), revision_nos.get(anomaly.revision_id))
+    data["review_history"] = review_history(db, anomaly_id)
+    return data
 
 
 def review(db: Session, anomaly: Anomaly, *, status: str, note: str | None, reviewer: str) -> Anomaly:

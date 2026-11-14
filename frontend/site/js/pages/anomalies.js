@@ -18,10 +18,12 @@ function openDetail(view, ctx, item) {
       ['影响金额', `<span class="${item.impact_amount < 0 ? 'neg' : 'pos'}">${fmtMoney(item.impact_amount)}</span>`],
       ['方向', esc(item.direction_label)],
       ['处理状态', `<span class="badge ${reviewTone(item.status)}">${esc(item.status_label)}</span>`],
+      ['数据修订', item.revision_no ? `<span class="mono">${esc(item.revision_no)}</span>` : '<span class="muted">原始检测批次</span>'],
       ['复核人', esc(item.reviewer || '—')],
       ['复核备注', esc(item.review_note || '—')],
       ['基线窗口', `${esc(payload.window_start || '—')} → ${esc(payload.window_end || '—')}（${esc(payload.window_samples || 0)} 个同期样本）`],
     ])}
+    <div id="review-history"></div>
     <h3 class="sub-head">基线三元组 vs 当期三元组</h3>
     ${table({
       rows: [
@@ -44,6 +46,21 @@ function openDetail(view, ctx, item) {
         </form>`
       : '<span class="mono muted">只读角色可以查看，但不能写结论</span>',
   });
+  api.anomalies.get(item.id).then((detail) => {
+    const history = detail.review_history || [];
+    const slot = root.querySelector('#review-history');
+    if (!slot || !history.length) return;
+    slot.innerHTML = `<h3 class="sub-head">历史复核（数据修订回退时保留）</h3>
+      ${table({
+        rows: history.map((entry) => ({ id: entry.id, ...entry })),
+        columns: [
+          { key: 'reviewed_at', label: '原复核', render: (row) => `<b>${esc(row.status_label)}</b><div class="mono muted">${fmtTime(row.reviewed_at)} · ${esc(row.reviewer || '—')}</div>` },
+          { key: 'review_note', label: '结论备注', render: (row) => esc(row.review_note || '—') },
+          { key: 'shift', label: '水位变化', render: (row) => `<span class="badge ${row.prev.severity}">${esc(ENUMS.severity[row.prev.severity] || row.prev.severity)}</span> → <span class="badge ${row.new.severity}">${esc(ENUMS.severity[row.new.severity] || row.new.severity)}</span><div class="mono muted">z ${row.prev.robust_z.toFixed(2)} → ${row.new.robust_z.toFixed(2)}</div>` },
+          { key: 'revision_no', label: '触发修订', className: 'mono', render: (row) => esc(row.revision_no || '—') },
+        ],
+      })}`;
+  }).catch(() => {});
   root.querySelector('[data-go-attribution]')?.addEventListener('click', () => {
     location.hash = `#/attribution?anomaly_id=${item.id}`;
   });

@@ -5,8 +5,9 @@ import pytest
 from pydantic import ValidationError
 
 from src.constants.enums import Role
-from src.constants.roles import EXPORT_ROLES, PERMISSIONS, ROLE_LABELS, has_permission
+from src.constants.roles import EXPORT_ROLES, PERMISSIONS, REVISION_CONFIRM_ROLES, ROLE_LABELS, has_permission
 from src.schemas.anomaly import ReviewIn
+from src.schemas.revision import RevisionIn
 from src.schemas.run import RunIn
 from src.schemas.store import StoreIn
 from src.utils.pagination import page_params
@@ -30,6 +31,30 @@ def test_analyst_cannot_generate_report_or_write_store():
     assert has_permission("analyst", "store:write") is False
     assert has_permission("analyst", "run:create") is True
     assert set(PERMISSIONS["viewer"]).issubset(PERMISSIONS["analyst"] | {"metric:read"})
+
+
+def test_revision_role_matrix():
+    assert has_permission("viewer", "revision:read") is True
+    assert has_permission("viewer", "revision:create") is False
+    assert has_permission("analyst", "revision:create") is True
+    assert has_permission("analyst", "revision:confirm") is False
+    assert set(REVISION_CONFIRM_ROLES) == {Role.ADMIN.value}
+
+
+def test_revision_payload_validation():
+    with pytest.raises(ValidationError):
+        RevisionIn(data_cutoff="昨天", points=[])
+    with pytest.raises(ValidationError):
+        RevisionIn(
+            data_cutoff="2026-11-04T06:30",
+            points=[{"store_code": "bad", "stat_date": "2026-09-24", "channel": "ota", "rooms_sold": 68, "adr": 1138.59}],
+        )
+    payload = RevisionIn(
+        data_cutoff="2026-11-04T06:30",
+        source="ota",
+        points=[{"store_code": "LB-HN-001", "stat_date": "2026-09-24", "channel": "ota", "rooms_sold": 68, "adr": 1138.59}],
+    )
+    assert payload.source == "ota" and payload.points[0].rooms_sold == 68
 
 
 def test_role_labels_cover_three_roles():

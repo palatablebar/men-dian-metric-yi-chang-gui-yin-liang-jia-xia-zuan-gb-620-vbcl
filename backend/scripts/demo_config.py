@@ -33,3 +33,18 @@ SEED_REVIEWS = [
     ("LB-HB-001", "2026-09-25", "confirmed", "当地区域展会取消，需求侧下滑，非门店经营问题。"),
     ("LB-HD-002", "2026-09-30", "dismissed", "PMS 上报延迟导致的补传，核对后为口径缺失，已重跑。"),
 ]
+
+# seed 预置的数据修订：PMS/OTA 迟到补报（在报告之后执行，演示「受影响报告」）
+# - LB-HN-001 2026-09-24 OTA 补报 +5 间夜：影响档位 high→medium，原 confirmed 复核归档、回到待复核
+# - LB-XN-005 2026-10-26 协议补报 +3 间夜：档位不变（medium），结论保留；落在周报区间内 → 受影响报告
+SEED_REVISION = {
+    "seed_key": "seed-revision-late-1",
+    "data_cutoff": "2026-11-04T06:30:00",
+    "source": "mixed",
+    "note": "PMS/OTA 迟到补报：OTA 漏传订单回补 5 间夜（09-24），协议团队补录 3 间夜（10-26）。",
+    "confirm": True,
+    "points": [
+        {"store_code": "LB-HN-001", "stat_date": "2026-09-24", "channel": "ota", "rooms_sold": 68, "adr": 1138.59},
+        {"store_code": "LB-XN-005", "stat_date": "2026-10-26", "channel": "corp", "rooms_sold": 37, "adr": 967.78},
+    ],
+}

@@ -11,6 +11,8 @@ ACTIONS: dict[str, str] = {
     "attribution.build": "生成归因",
     "report.generate": "生成报告",
     "report.publish": "发布报告",
+    "revision.create": "形成数据修订",
+    "revision.confirm": "确认数据修订",
     "export.anomalies": "导出异常清单",
     "export.attributions": "导出归因明细",
     "export.report": "导出报告",

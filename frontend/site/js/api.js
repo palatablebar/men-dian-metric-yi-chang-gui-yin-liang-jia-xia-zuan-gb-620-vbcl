@@ -107,6 +107,12 @@ export const api = {
     create: (body) => request('/api/reports', { method: 'POST', body }),
     publish: (id, body) => request(`/api/reports/${id}`, { method: 'PATCH', body }),
   },
+  revisions: {
+    list: (query) => request('/api/revisions', { query }),
+    get: (id) => request(`/api/revisions/${id}`),
+    create: (body) => request('/api/revisions', { method: 'POST', body }),
+    confirm: (id) => request(`/api/revisions/${id}/confirm`, { method: 'POST', body }),
+  },
   audit: {
     list: (query) => request('/api/audit', { query }),
   },

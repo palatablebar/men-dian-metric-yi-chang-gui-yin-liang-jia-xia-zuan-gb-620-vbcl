@@ -1,9 +1,9 @@
-"""经营报告（日报 / 周报），快照存 JSON，可导出 CSV。"""
+"""经营报告（日报 / 周报），快照存 JSON，可导出 CSV；引用已确认数据修订。"""
 from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import JSON, Date, DateTime, Float, Integer, String, Text
+from sqlalchemy import JSON, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models import Base
@@ -25,6 +25,8 @@ class Report(Base):
     impact_total: Mapped[float] = mapped_column(Float, default=0.0)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    revision_id: Mapped[int | None] = mapped_column(ForeignKey("data_revisions.id", ondelete="SET NULL"), nullable=True, index=True)
     seed_key: Mapped[str | None] = mapped_column(String(120), unique=True, nullable=True)
+    dedupe_key: Mapped[str | None] = mapped_column(String(120), unique=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

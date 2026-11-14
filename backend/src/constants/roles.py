@@ -22,16 +22,19 @@ PERMISSIONS: dict[str, set[str]] = {
         "anomaly:read", "anomaly:review",
         "run:read", "run:create",
         "report:read", "report:generate",
+        "revision:read", "revision:create", "revision:confirm",
         "export:read", "audit:read", "overview:read",
     },
     Role.ANALYST.value: {
         "store:read", "metric:read",
         "anomaly:read", "anomaly:review",
         "run:read", "run:create",
-        "report:read", "export:read", "overview:read",
+        "report:read",
+        "revision:read", "revision:create",
+        "export:read", "overview:read",
     },
     Role.VIEWER.value: {
-        "store:read", "metric:read", "anomaly:read", "run:read", "report:read", "overview:read",
+        "store:read", "metric:read", "anomaly:read", "run:read", "report:read", "revision:read", "overview:read",
     },
 }
 
@@ -39,6 +42,8 @@ STORE_WRITE_ROLES = (Role.ADMIN.value,)
 RUN_CREATE_ROLES = (Role.ADMIN.value, Role.ANALYST.value)
 REVIEW_ROLES = (Role.ADMIN.value, Role.ANALYST.value)
 REPORT_GENERATE_ROLES = (Role.ADMIN.value,)
+REVISION_CREATE_ROLES = (Role.ADMIN.value, Role.ANALYST.value)
+REVISION_CONFIRM_ROLES = (Role.ADMIN.value,)
 EXPORT_ROLES = (Role.ADMIN.value, Role.ANALYST.value)
 AUDIT_ROLES = (Role.ADMIN.value,)
 READ_ROLES = (Role.ADMIN.value, Role.ANALYST.value, Role.VIEWER.value)

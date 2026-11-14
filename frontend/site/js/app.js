@@ -8,6 +8,7 @@ import storesPage from './pages/stores.js';
 import anomaliesPage from './pages/anomalies.js';
 import attributionPage from './pages/attribution.js';
 import reportsPage from './pages/reports.js';
+import revisionsPage from './pages/revisions.js';
 import auditPage from './pages/audit.js';
 
 const routes = [
@@ -16,6 +17,7 @@ const routes = [
   { path: '#/anomalies', page: anomaliesPage, permission: 'anomaly:read' },
   { path: '#/attribution', page: attributionPage, permission: 'anomaly:read' },
   { path: '#/reports', page: reportsPage, permission: 'report:read' },
+  { path: '#/revisions', page: revisionsPage, permission: 'revision:read' },
   { path: '#/audit', page: auditPage, permission: 'audit:read' },
 ];
 
